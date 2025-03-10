@@ -5,8 +5,19 @@ import fetch from 'node-fetch';
 import gunzip from 'gunzip-maybe';
 import { pipeline } from 'stream/promises';
 
+interface ExtensionInfo {
+    publisher: string;
+    extensionName: string;
+    displayName: string;
+    version: string;
+    description: string;
+    installs: number;
+    rating: number;
+}
+
 export class ExtensionInstaller {
     private extensionsDir: string;
+    private readonly MARKETPLACE_API = 'https://marketplace.visualstudio.com/_apis/public/gallery/extensionquery';
 
     constructor() {
         this.extensionsDir = path.join(os.homedir(), '.cursor', 'extensions');
@@ -16,6 +27,44 @@ export class ExtensionInstaller {
     private ensureExtensionsDir() {
         if (!fs.existsSync(this.extensionsDir)) {
             fs.mkdirSync(this.extensionsDir, { recursive: true });
+        }
+    }
+
+    public async searchExtensions(query: string): Promise<ExtensionInfo[]> {
+        try {
+            const response = await fetch(this.MARKETPLACE_API, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json;api-version=7.1-preview.1'
+                },
+                body: JSON.stringify({
+                    filters: [{
+                        criteria: [{
+                            filterType: 8,
+                            value: query
+                        }]
+                    }],
+                    flags: 0x200 // Include installation stats and ratings
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`Failed to search extensions: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            return data.results[0].extensions.map((ext: any) => ({
+                publisher: ext.publisher.publisherName,
+                extensionName: ext.extensionName,
+                displayName: ext.displayName,
+                version: ext.versions[0].version,
+                description: ext.shortDescription,
+                installs: ext.statistics.find((s: any) => s.statisticName === 'install').value,
+                rating: ext.statistics.find((s: any) => s.statisticName === 'averagerating')?.value || 0
+            }));
+        } catch (error) {
+            throw new Error(`Error searching extensions: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
     }
 

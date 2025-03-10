@@ -4,6 +4,8 @@ A Model Context Protocol (MCP) server for automatically installing VS Code exten
 
 ## Features
 
+- Natural language search for VS Code extensions
+- Smart ranking based on installs and ratings
 - Automatically downloads and installs VS Code extensions from the official marketplace
 - Handles gzipped VSIX files correctly
 - Validates downloaded extensions before installation
@@ -23,7 +25,37 @@ npm install mcp-server-vscode-extensions
 npm start
 ```
 
-2. Use the MCP client to install extensions:
+2. Search for extensions using natural language:
+
+```typescript
+const result = await mcpClient.call('search_extensions', {
+    query: 'sqlite database viewer and editor'
+});
+
+// Result example:
+{
+    success: true,
+    extensions: [
+        {
+            publisher: "qwtel",
+            extensionName: "sqlite-viewer",
+            displayName: "SQLite Viewer",
+            version: "0.1.5",
+            description: "SQLite Viewer and Editor",
+            installs: 500000,
+            rating: 4.8,
+            installCommand: {
+                publisher: "qwtel",
+                extension: "sqlite-viewer",
+                version: "0.1.5"
+            }
+        },
+        // ... more extensions
+    ]
+}
+```
+
+3. Install a specific extension:
 
 ```typescript
 const result = await mcpClient.call('install_extension', {
@@ -34,6 +66,35 @@ const result = await mcpClient.call('install_extension', {
 ```
 
 ## API
+
+### search_extensions
+
+Search for VS Code extensions using natural language queries.
+
+Parameters:
+- `query`: Natural language description of the extension you're looking for (e.g., 'sqlite database viewer')
+
+Returns:
+```typescript
+{
+    success: boolean;
+    extensions?: Array<{
+        publisher: string;
+        extensionName: string;
+        displayName: string;
+        version: string;
+        description: string;
+        installs: number;
+        rating: number;
+        installCommand: {
+            publisher: string;
+            extension: string;
+            version: string;
+        }
+    }>;
+    message?: string;
+}
+```
 
 ### install_extension
 
